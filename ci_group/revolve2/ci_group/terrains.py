@@ -31,6 +31,143 @@ def flat(size: Vector2 = Vector2([20.0, 20.0])) -> Terrain:
     )
 
 
+def flat_rugged(
+    size: tuple[float, float],
+    ruggedness: float = 0.1,
+    granularity_multiplier: float = 1.0,
+) -> Terrain:
+    """
+    Create a flat terrain with slight ruggedness using a heightmap.
+
+    :param size: Size of the terrain.
+    :param ruggedness: The height variation across the terrain.
+    :param granularity_multiplier: Multiplier for the number of edges used in the heightmap.
+    :returns: The created terrain.
+    """
+    NUM_EDGES = 100  # arbitrary constant following the crater terrain
+
+    num_edges = (
+        int(NUM_EDGES * size[0] * granularity_multiplier),
+        int(NUM_EDGES * size[1] * granularity_multiplier),
+    )
+
+    heights = rugged_heightmap(
+        size=size,
+        num_edges=num_edges,
+        density=1.0,
+    )
+
+    # Scale the ruggedness to maintain overall flatness
+    max_height = ruggedness
+    heights *= ruggedness
+
+    return Terrain(
+        static_geometry=[
+            GeometryHeightmap(
+                pose=Pose(),
+                mass=0.0,
+                size=Vector3([size[0], size[1], max_height]),
+                base_thickness=0.1,
+                heights=heights,
+            )
+        ]
+    )
+
+
+def mixed_flat_rugged(
+    size: tuple[float, float],
+    ruggedness: float = 0.1,
+    granularity_multiplier: float = 1.0,
+) -> Terrain:
+    """
+    Create a mixed terrain with half flat and half slight ruggedness using a heightmap.
+
+    :param size: Size of the terrain.
+    :param ruggedness: The height variation across the terrain.
+    :param granularity_multiplier: Multiplier for the number of edges used in the heightmap.
+    :returns: The created terrain.
+    """
+    NUM_EDGES = 100  # arbitrary constant following the crater terrain
+
+    num_edges = (
+        int(NUM_EDGES * size[0] * granularity_multiplier),
+        int(NUM_EDGES * size[1] * granularity_multiplier),
+    )
+
+    heights = rugged_heightmap(
+        size=size,
+        num_edges=num_edges,
+        density=1.0,
+    )
+
+    # Downscale the ruggedness to maintain overall flatness
+    heights *= ruggedness
+
+    # Set half the terrain to be flat
+    midpoint = num_edges[0] // 2
+    heights[:, :midpoint] = 0
+
+    return Terrain(
+        static_geometry=[
+            GeometryHeightmap(
+                pose=Pose(),
+                mass=0.0,
+                size=Vector3([size[0], size[1], ruggedness]),
+                base_thickness=0.1,
+                heights=heights,
+            )
+        ]
+    )
+
+
+def mixed_flat_rugged_one_thirds(
+    size: tuple[float, float],
+    ruggedness: float = 0.1,
+    granularity_multiplier: float = 1.0,
+) -> Terrain:
+    """
+    Create a mixed terrain with half flat and half slight ruggedness using a heightmap.
+
+    :param size: Size of the terrain.
+    :param ruggedness: The height variation across the terrain.
+    :param granularity_multiplier: Multiplier for the number of edges used in the heightmap.
+    :returns: The created terrain.
+    """
+    NUM_EDGES = 100  # arbitrary constant following the crater terrain
+
+    num_edges = (
+        int(NUM_EDGES * size[0] * granularity_multiplier),
+        int(NUM_EDGES * size[1] * granularity_multiplier),
+    )
+
+    heights = rugged_heightmap(
+        size=size,
+        num_edges=num_edges,
+        density=1.0,
+    )
+
+    # Downscale the ruggedness to maintain overall flatness
+    heights *= ruggedness
+
+    # Set 2/3 of the terrain to be perfectly flat
+    # Determine the start of the rugged third along the width
+    rugged_start = num_edges[0] * 2 // 3
+    # Set the first two-thirds of the heightmap to flat
+    heights[:, :rugged_start] = 0
+
+    return Terrain(
+        static_geometry=[
+            GeometryHeightmap(
+                pose=Pose(),
+                mass=0.0,
+                size=Vector3([size[0], size[1], ruggedness]),
+                base_thickness=0.1,
+                heights=heights,
+            )
+        ]
+    )
+
+
 def crater(
     size: tuple[float, float],
     ruggedness: float,
@@ -73,7 +210,8 @@ def crater(
         heightmap = np.zeros(num_edges)
         max_height = 1.0
     else:
-        heightmap = (ruggedness * rugged + curviness * bowl) / (ruggedness + curviness)
+        heightmap = (ruggedness * rugged + curviness * bowl) / \
+            (ruggedness + curviness)
 
     return Terrain(
         static_geometry=[
