@@ -8,9 +8,11 @@ from noise import pnoise2
 from pyrr import Vector3
 
 from revolve2.modular_robot_simulation import Terrain
-from revolve2.simulation.scene import Pose
+from revolve2.simulation.scene import Pose, Color
 from revolve2.simulation.scene.geometry import GeometryHeightmap, GeometryPlane
 from revolve2.simulation.scene.vector2 import Vector2
+from revolve2.simulators.mujoco_simulator.textures import Checker
+from revolve2.simulation.scene.geometry.textures import MapType
 
 
 def flat(size: Vector2 = Vector2([20.0, 20.0])) -> Terrain:
@@ -70,6 +72,77 @@ def flat_rugged(
                 base_thickness=0.1,
                 heights=heights,
             )
+        ]
+    )
+
+
+def mixed_terrain(
+    size: tuple[float, float],
+    ruggedness: float = 0.1,
+    granularity_multiplier: float = 1.0,
+) -> Terrain:
+    """
+    Create a mixed terrain that includes a rugged, flat, and checker texture.
+
+    :param size: Size of the terrain.
+    :param ruggedness: The height variation across the terrain.
+    :param granularity_multiplier: Multiplier for the number of edges used in the heightmap.
+    :returns: The created terrain.
+    """
+    NUM_EDGES = 100  # arbitrary constant following the crater terrain
+
+    num_edges = (
+        int(NUM_EDGES * size[0] * granularity_multiplier),
+        int(NUM_EDGES * size[1] * granularity_multiplier),
+    )
+
+    # print("Num Edges:", num_edges)
+
+    rugged_heights = rugged_heightmap(
+        size=size,
+        num_edges=num_edges,
+        density=1.0,
+    )
+
+    flat_heights = np.zeros_like(rugged_heights)
+
+    # print("Rugged heightmap shape:", rugged_heights.shape)
+    # print("Rugged heightmap min", rugged_heights.min())
+    # print("Rugged heightmap max", rugged_heights.max())
+    # print("Flat heightmap shape:", flat_heights.shape)
+
+    # Scale the ruggedness to maintain overall flatness
+    max_height = ruggedness
+    rugged_heights *= ruggedness
+
+    return Terrain(
+        static_geometry=[
+            GeometryHeightmap(
+                pose=Pose(Vector3([0, 0, 0])),
+                mass=0.0,
+                size=Vector3([size[0], size[1], max_height]),
+                base_thickness=0.1,
+                heights=flat_heights,
+            ),
+            GeometryHeightmap(
+                pose=Pose(Vector3([2 * size[0], 0, 0])),
+                mass=0.0,
+                size=Vector3([size[0], size[1], max_height]),
+                base_thickness=0.1,
+                heights=flat_heights,
+                texture=Checker(
+                    primary_color=Color(170, 170, 180, 255),
+                    secondary_color=Color(150, 150, 150, 255),
+                    map_type=MapType.MAP2D,
+                ),
+            ),
+            GeometryHeightmap(
+                pose=Pose(Vector3([4 * size[0], 0, 0])),
+                mass=0.0,
+                size=Vector3([size[0], size[1], max_height]),
+                base_thickness=0.1,
+                heights=rugged_heights,
+            ),
         ]
     )
 
@@ -210,8 +283,7 @@ def crater(
         heightmap = np.zeros(num_edges)
         max_height = 1.0
     else:
-        heightmap = (ruggedness * rugged + curviness * bowl) / \
-            (ruggedness + curviness)
+        heightmap = (ruggedness * rugged + curviness * bowl) / (ruggedness + curviness)
 
     return Terrain(
         static_geometry=[
