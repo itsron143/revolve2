@@ -3,7 +3,8 @@ from typing import Any
 from .abstract_elements import Evaluator, Evolution, Learner, Reproducer, Selector
 
 TPopulation = (
-    Any  # An alias for Any signifying that a population can vary depending on use-case.
+    # An alias for Any signifying that a population can vary depending on use-case.
+    Any
 )
 
 
@@ -59,8 +60,11 @@ class ModularRobotEvolution(Evolution):
         :param kwargs: Additional keyword arguments to use in the step.
         :return: The population resulting from the step
         """
-        parents, parent_kwargs = self._parent_selection.select(population, **kwargs)
+        parents, parent_kwargs = self._parent_selection.select(
+            population, **kwargs)
         children = self._reproducer.reproduce(parents, **parent_kwargs)
+        if self._learner is not None:
+            children = self._learner.learn(children)
         child_task_performance = self._evaluator.evaluate(children)
         survivors, *_ = self._survivor_selection.select(
             population,
